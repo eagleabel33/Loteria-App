@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Lotería Card Draw</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    /* GENERAL STYLES */
+    html, body { margin: 0; padding: 0; box-sizing: border-box; min-height: 100vh; }
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      text-align: center;
+      padding: clamp(20px, 4vw, 30px) clamp(10px, 2vw, 15px);
+      max-width: 480px;
+      margin: 0 auto;
+      transition: background 0.3s, color 0.3s;
+    }
+
+    /* --- THEME STYLES (LIGHT & DARK) --- */
+    body { background: #f8f8ff; color: #1a1a1a; }
+    #card-display { background: #fff; color: #1a1a1a; box-shadow: 0 2px 8px #ccc; }
+    #history { background: #fff; box-shadow: 0 1px 4px #e3e3e3; }
+    #cards-left { color: #31ad51; background: #f3f3fa; box-shadow: 0 1px 3px #ddd; }
+    body.dark { background: #23272f; color: #fafafc; }
+    body.dark #card-display, body.dark #history { background: #1c1e25; color: #f4e384; box-shadow: 0 2px 8px #111; }
+    body.dark #cards-left { background: #191a1c; color: #90ffb1; box-shadow: 0 1px 3px #222; }
+    
+    /* --- TOP CONTROLS WRAPPER --- */
+    .top-controls {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: clamp(15px, 3vw, 20px);
+    }
+
+    /* --- THEME TOGGLE SWITCH --- */
+    .theme-switch { display: inline-block; height: 34px; position: relative; width: 60px; }
+    .theme-switch input { opacity: 0; width: 0; height: 0; }
+    .slider { background-color: #ccc; bottom: 0; cursor: pointer; left: 0; position: absolute; right: 0; top: 0; transition: .4s; border-radius: 34px; display: flex; align-items: center; justify-content: space-between; padding: 2px; }
+    .slider:before { background-color: white; content: ""; height: 26px; width: 26px; left: 4px; bottom: 4px; position: absolute; transition: .4s; border-radius: 50%; box-shadow: 0 0 2px rgba(0,0,0,0.4); z-index: 2; }
+    .slider-icon { width: 22px; height: 22px; z-index: 1; padding: 0 4px; display: flex; justify-content: center; align-items: center; font-size: 18px; }
+    input:checked + .slider { background-color: #404552; }
+    input:checked + .slider:before { transform: translateX(26px); }
+    
+    /* --- MUTE BUTTON --- */
+    #mute-btn {
+        background: none;
+        border: 2px solid #888;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        color: #888;
+    }
+    #mute-btn svg { width: 20px; height: 20px; }
+    body.dark #mute-btn { border-color: #666; color: #666; }
+    #mute-btn.muted { border-color: #ff6b6b; color: #ff6b6b; }
+
+    /* --- MAIN ELEMENT STYLES --- */
+    h1 { font-size: clamp(32px, 7.5vw, 38px); margin-top: 0; margin-bottom: clamp(20px, 5vw, 25px); }
+    #card-display {
+      margin: clamp(20px, 6vw, 25px) 0 clamp(15px, 3vw, 20px) 0;
+      padding: clamp(15px, 3vw, 20px);
+      min-height: 40vh; /* Give space for the image */
+      border-radius: 14px;
+      transition: background 0.2s, color 0.2s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    #card-image {
+      display: none; /* Hidden by default, shown when card is drawn */
+      width: 100%;
+      max-width: 250px; /* Control max image size */
+      height: auto;
+      object-fit: contain;
+      border-radius: 12px;
+    }
+    #card-name {
+      /* This element is now only for status messages */
+      font-size: clamp(30px, 7.5vw, 40px);
+    }
+    #draw-btn {
+      display: block; width: 90%; margin: 0 auto clamp(15px, 3vw, 20px) auto;
+      padding: clamp(15px, 4vw, 18px) 0; font-size: clamp(28px, 7vw, 32px);
+      border-radius: 100px; border: none; background: #2ebf41; color: #fff; font-weight: bold;
+      box-shadow: 0 2px 8px #9be6a3; transition: background 0.2s, box-shadow 0.2s; cursor: pointer; letter-spacing: 0.03em;
+    }
+    #draw-btn:active { background: #1e8c2c; box-shadow: 0 1px 4px #67a570; }
+    .auto-controls { display: flex; align-items: center; justify-content: center; gap: clamp(8px, 2vw, 12px); margin-bottom: clamp(15px, 3vw, 20px); flex-wrap: wrap; }
+    .auto-btn { font-size: clamp(18px, 4.5vw, 20px); padding: clamp(8px, 2vw, 12px) clamp(15px, 4vw, 20px); border-radius: 100px; border: none; background: #1877e6; color: #fff; box-shadow: 0 2px 6px #bbb; transition: background 0.2s, box-shadow 0.2s; cursor: pointer; }
+    .auto-btn:active { background: #135cab; }
+    .speed-label { font-size: clamp(16px, 4vw, 18px); margin-right: 1vw; }
+    .speed-select { font-size: clamp(18px, 5vw, 20px); padding: clamp(4px, 1vw, 6px) clamp(8px, 2vw, 12px); border-radius: 7px; border: 1px solid #bbb; }
+    #cards-left { margin: clamp(8px, 2vw, 15px) auto 0 auto; font-size: clamp(18px, 5vw, 22px); font-weight: bold; border-radius: 7px; width: fit-content; padding: clamp(5px, 1vw, 8px) clamp(15px, 4vw, 20px); }
+    #history { margin-top: clamp(20px, 4vw, 25px); font-size: clamp(14px, 4vw, 16px); word-break: break-word; text-align: left; border-radius: 10px; padding: clamp(12px, 3vw, 15px); }
+    #drawn-cards { display: inline; word-break: break-word; }
+    .bottom-btns { display: flex; justify-content: center; gap: clamp(20px, 6vw, 30px); margin-top: clamp(20px, 5vw, 30px); flex-wrap: wrap; }
+    .small-btn { font-size: clamp(18px, 5vw, 22px); padding: clamp(12px, 3vw, 15px) clamp(25px, 7vw, 30px); border-radius: 100px; border: none; background: #ffb700; color: #1a1a1a; box-shadow: 0 2px 6px #ddd; transition: background 0.2s, box-shadow 0.2s; cursor: pointer; }
+    .small-btn:active { background: #ff9900; box-shadow: 0 1px 3px #aaa; }
+    .toggle-lang { background: #1877e6; color: #fff; border: 2px solid #1877e6; font-size: clamp(16px, 4vw, 18px); padding: clamp(8px, 2vw, 10px) clamp(20px, 6vw, 25px); border-radius: 100px; box-shadow: 0 2px 6px #bbb; transition: background 0.2s, color 0.2s, border 0.2s; cursor: pointer; }
+    .toggle-lang:active { background: #135cab; }
+    
+  </style>
+</head>
+<body>
+  <h1 id="main-title">🎴 Lotería Card Draw</h1>
+
+  <div class="top-controls">
+    <div class="theme-switch-wrapper">
+      <label class="theme-switch" for="theme-toggle">
+          <input type="checkbox" id="theme-toggle" />
+          <div class="slider">
+              <span class="slider-icon">☀️</span>
+              <span class="slider-icon">🌙</span>
+          </div>
+      </label>
+    </div>
+    <button class="toggle-lang" id="lang-btn">Español</button>
+    <button id="mute-btn">
+      <svg id="speaker-on" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M13.5 4.06c0-1.336-1.616-2.005-2.56-1.06l-4.5 4.5H4.508c-1.141 0-2.318.664-2.66 1.905A9.76 9.76 0 0 0 1.5 12c0 .898.121 1.768.35 2.595.341 1.24 1.518 1.905 2.66 1.905H6.44l4.5 4.5c.945.945 2.56.276 2.56-1.06V4.06ZM18.584 12c0-1.857-.87-3.54-2.274-4.635a.75.75 0 0 0-1.06 1.06c1.061.816 1.75 2.12 1.75 3.575s-.688 2.76-1.75 3.575a.75.75 0 1 0 1.06 1.06C17.714 15.54 18.584 13.856 18.584 12ZM21.258 12c0-3.18-1.443-6.023-3.79-7.94a.75.75 0 0 0-1.062 1.06c1.974 1.584 3.262 3.994 3.262 6.88s-1.288 5.296-3.262 6.88a.75.75 0 1 0 1.062 1.06C19.815 18.023 21.258 15.18 21.258 12Z"/></svg>
+      <svg id="speaker-off" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="display: none;"><path d="M13.5 4.06c0-1.336-1.616-2.005-2.56-1.06l-4.5 4.5H4.508c-1.141 0-2.318.664-2.66 1.905A9.76 9.76 0 0 0 1.5 12c0 .898.121 1.768.35 2.595.341 1.24 1.518 1.905 2.66 1.905H6.44l4.5 4.5c.945.945 2.56.276 2.56-1.06V4.06ZM17.28 9.53a.75.75 0 0 0-1.06 1.06l1.72 1.72-1.72 1.72a.75.75 0 1 0 1.06 1.06l1.72-1.72 1.72 1.72a.75.75 0 1 0 1.06-1.06L19.34 12l1.72-1.72a.75.75 0 1 0-1.06-1.06l-1.72 1.72-1.72-1.72Z"/></svg>
+    </button>
+  </div>
+  
+  <div id="card-display">
+      <img id="card-image" src="" alt="Lotería Card">
+      <div id="card-name">Press New Game</div>
+  </div>
+
+  <button id="draw-btn">Draw Next Card</button>
+  <div class="auto-controls">
+    <button class="auto-btn" id="auto-btn">Start Auto Draw</button>
+    <label class="speed-label" for="speed-select" id="speed-label">Speed:</label>
+    <select id="speed-select" class="speed-select">
+      <option value="3">3 sec</option><option value="4">4 sec</option>
+      <option value="5" selected>5 sec</option><option value="6">6 sec</option>
+      <option value="7">7 sec</option><option value="8">8 sec</option>
+      <option value="9">9 sec</option><option value="10">10 sec</option>
+    </select>
+  </div>
+  <div id="cards-left"></div>
+  <div id="history">
+    <strong id="drawn-title">Drawn Cards:</strong>
+    <span id="drawn-cards"></span>
+  </div>
+  <div class="bottom-btns">
+    <button class="small-btn" id="newgame-btn">New Game</button>
+    <button class="small-btn" id="reshuffle-btn">Reshuffle</button>
+  </div>
+
+  <!-- Audio Players -->
+  <audio id="shuffle-sound" src="audio/shuffle.mp3" preload="auto"></audio>
+  <audio id="card-sound" preload="auto"></audio>
+
+  <script>
+    const loteriaCards = [
+        { id: 1, name: "El Gallo", image: "images/1.jpg", audio: "audio/1.mp3" },
+        { id: 2, name: "El Diablito", image: "images/2.jpg", audio: "audio/2.mp3" },
+        { id: 3, name: "La Dama", image: "images/3.jpg", audio: "audio/3.mp3" },
+        { id: 4, name: "El Catrín", image: "images/4.jpg", audio: "audio/4.mp3" },
+        { id: 5, name: "El Paraguas", image: "images/5.jpg", audio: "audio/5.mp3" },
+        { id: 6, name: "La Sirena", image: "images/6.jpg", audio: "audio/6.mp3" },
+        { id: 7, name: "La Escalera", image: "images/7.jpg", audio: "audio/7.mp3" },
+        { id: 8, name: "La Botella", image: "images/8.jpg", audio: "audio/8.mp3" },
+        { id: 9, name: "El Barril", image: "images/9.jpg", audio: "audio/9.mp3" },
+        { id: 10, name: "El Árbol", image: "images/10.jpg", audio: "audio/10.mp3" },
+        { id: 11, name: "El Melón", image: "images/11.jpg", audio: "audio/11.mp3" },
+        { id: 12, name: "El Valiente", image: "images/12.jpg", audio: "audio/12.mp3" },
+        { id: 13, name: "El Gorrito", image: "images/13.jpg", audio: "audio/13.mp3" },
+        { id: 14, name: "La Muerte", image: "images/14.jpg", audio: "audio/14.mp3" },
+        { id: 15, name: "La Pera", image: "images/15.jpg", audio: "audio/15.mp3" },
+        { id: 16, name: "La Bandera", image: "images/16.jpg", audio: "audio/16.mp3" },
+        { id: 17, name: "El Bandolón", image: "images/17.jpg", audio: "audio/17.mp3" },
+        { id: 18, name: "El Violoncello", image: "images/18.jpg", audio: "audio/18.mp3" },
+        { id: 19, name: "La Garza", image: "images/19.jpg", audio: "audio/19.mp3" },
+        { id: 20, name: "El Pájaro", image: "images/20.jpg", audio: "audio/20.mp3" },
+        { id: 21, name: "La Mano", image: "images/21.jpg", audio: "audio/21.mp3" },
+        { id: 22, name: "La Bota", image: "images/22.jpg", audio: "audio/22.mp3" },
+        { id: 23, name: "La Luna", image: "images/23.jpg", audio: "audio/23.mp3" },
+        { id: 24, name: "El Cotorro", image: "images/24.jpg", audio: "audio/24.mp3" },
+        { id: 25, name: "El Borracho", image: "images/25.jpg", audio: "audio/25.mp3" },
+        { id: 26, name: "El Negrito", image: "images/26.jpg", audio: "audio/26.mp3" },
+        { id: 27, name: "El Corazón", image: "images/27.jpg", audio: "audio/27.mp3" },
+        { id: 28, name: "La Sandía", image: "images/28.jpg", audio: "audio/28.mp3" },
+        { id: 29, name: "El Tambor", image: "images/29.jpg", audio: "audio/29.mp3" },
+        { id: 30, name: "El Camarón", image: "images/30.jpg", audio: "audio/30.mp3" },
+        { id: 31, name: "Las Jaras", image: "images/31.jpg", audio: "audio/31.mp3" },
+        { id: 32, name: "El Músico", image: "images/32.jpg", audio: "audio/32.mp3" },
+        { id: 33, name: "La Araña", image: "images/33.jpg", audio: "audio/33.mp3" },
+        { id: 34, name: "El Soldado", image: "images/34.jpg", audio: "audio/34.mp3" },
+        { id: 35, name: "La Estrella", image: "images/35.jpg", audio: "audio/35.mp3" },
+        { id: 36, name: "El Cazo", image: "images/36.jpg", audio: "audio/36.mp3" },
+        { id: 37, name: "El Mundo", image: "images/37.jpg", audio: "audio/37.mp3" },
+        { id: 38, name: "El Apache", image: "images/38.jpg", audio: "audio/38.mp3" },
+        { id: 39, name: "El Nopal", image: "images/39.jpg", audio: "audio/39.mp3" },
+        { id: 40, name: "El Alacrán", image: "images/40.jpg", audio: "audio/40.mp3" },
+        { id: 41, name: "La Rosa", image: "images/41.jpg", audio: "audio/41.mp3" },
+        { id: 42, name: "La Calavera", image: "images/42.jpg", audio: "audio/42.mp3" },
+        { id: 43, name: "La Campana", image: "images/43.jpg", audio: "audio/43.mp3" },
+        { id: 44, name: "El Cantarito", image: "images/44.jpg", audio: "audio/44.mp3" },
+        { id: 45, name: "El Venado", image: "images/45.jpg", audio: "audio/45.mp3" },
+        { id: 46, name: "El Sol", image: "images/46.jpg", audio: "audio/46.mp3" },
+        { id: 47, name: "La Corona", image: "images/47.jpg", audio: "audio/47.mp3" },
+        { id: 48, name: "La Chalupa", image: "images/48.jpg", audio: "audio/48.mp3" },
+        { id: 49, name: "El Pino", image: "images/49.jpg", audio: "audio/49.mp3" },
+        { id: 50, name: "El Pescado", image: "images/50.jpg", audio: "audio/50.mp3" },
+        { id: 51, name: "La Palma", image: "images/51.jpg", audio: "audio/51.mp3" },
+        { id: 52, name: "La Maceta", image: "images/52.jpg", audio: "audio/52.mp3" },
+        { id: 53, name: "El Arpa", image: "images/53.jpg", audio: "audio/53.mp3" },
+        { id: 54, name: "La Rana", image: "images/54.jpg", audio: "audio/54.mp3" }
+    ];
+
+    const uiText = {
+      en: {
+        title: "🎴 Lotería Card Draw", toggleLang: "Español", pressNewGame: "Press New Game", ready: "Ready to draw!",
+        drawNext: "Draw Next Card", startAuto: "Start Auto Draw", pauseAuto: "Pause Auto Draw", speed: "Speed:",
+        cardsLeft: "Cards Left: ", drawnTitle: "Drawn Cards:", newGame: "New Game", reshuffle: "Reshuffle",
+        confirm: "Are you sure you want to start a new game? All progress will be lost.", noMore: "No more cards!"
+      },
+      es: {
+        title: "🎴 Sorteo de Cartas Lotería", toggleLang: "English", pressNewGame: "Presiona Nuevo Juego", ready: "¡Listo para sacar carta!",
+        drawNext: "Sacar Carta", startAuto: "Sorteo Automático", pauseAuto: "Pausar Sorteo", speed: "Velocidad:",
+        cardsLeft: "Cartas Restantes: ", drawnTitle: "Cartas Sacadas:", newGame: "Nuevo Juego", reshuffle: "Barajar",
+        confirm: "¿Estás seguro de que deseas iniciar un nuevo juego? Todo el progreso se perderá.", noMore: "¡No hay más cartas!"
+      }
+    };
+
+    let lang = "en";
+    let deck = [];
+    let drawn = [];
+    let gameStarted = false;
+    let autoDrawActive = false;
+    let autoDrawTimer = null;
+    let autoDrawSpeed = 5000;
+    let wakeLock = null;
+    let isMuted = false;
+
+    // Element references
+    const cardImageEl = document.getElementById('card-image');
+    const cardNameEl = document.getElementById('card-name');
+    const cardSoundEl = document.getElementById('card-sound');
+    const muteBtn = document.getElementById('mute-btn');
+    const speakerOnIcon = document.getElementById('speaker-on');
+    const speakerOffIcon = document.getElementById('speaker-off');
+
+    // Wake Lock Functions
+    async function requestWakeLock() { try { if ('wakeLock' in navigator) { wakeLock = await navigator.wakeLock.request('screen'); } } catch (e) { console.error('Wake Lock request failed:', e); } }
+    async function releaseWakeLock() { try { if (wakeLock !== null) { await wakeLock.release(); wakeLock = null; } } catch (e) { console.error('Wake Lock release failed:', e); } }
+    document.addEventListener('visibilitychange', () => { if (autoDrawActive && document.visibilityState === 'visible') { requestWakeLock(); } });
+
+    function updateUI() {
+      document.getElementById('main-title').textContent = uiText[lang].title;
+      document.getElementById('lang-btn').textContent = uiText[lang].toggleLang;
+      document.getElementById('draw-btn').textContent = uiText[lang].drawNext;
+      document.getElementById('auto-btn').textContent = autoDrawActive ? uiText[lang].pauseAuto : uiText[lang].startAuto;
+      document.getElementById('speed-label').textContent = uiText[lang].speed;
+      document.getElementById('drawn-title').textContent = uiText[lang].drawnTitle;
+      document.getElementById('newgame-btn').textContent = uiText[lang].newGame;
+      document.getElementById('reshuffle-btn').textContent = uiText[lang].reshuffle;
+      if (gameStarted) { document.getElementById('cards-left').textContent = uiText[lang].cardsLeft + deck.length; }
+      
+      if (!gameStarted) {
+        cardNameEl.textContent = uiText[lang].pressNewGame;
+        cardNameEl.style.display = 'block';
+        cardImageEl.style.display = 'none';
+        document.getElementById('cards-left').textContent = "";
+        document.getElementById('drawn-cards').textContent = "";
+      } else if (drawn.length === 0) {
+        cardNameEl.textContent = uiText[lang].ready;
+        cardNameEl.style.display = 'block';
+        cardImageEl.style.display = 'none';
+        document.getElementById('drawn-cards').textContent = "";
+      } else if (deck.length === 0 && drawn.length > 0) {
+        cardNameEl.textContent = uiText[lang].noMore;
+        cardNameEl.style.display = 'block';
+        cardImageEl.style.display = 'none';
+      }
+    }
+
+    function newGame() {
+      stopAutoDraw();
+      deck = [...loteriaCards];
+      drawn = [];
+      gameStarted = true;
+      updateUI();
+    }
+
+    function drawCard() {
+      if (!gameStarted) return;
+      if (deck.length === 0) {
+        updateUI(); 
+        stopAutoDraw();
+        return;
+      }
+      
+      const index = Math.floor(Math.random() * deck.length);
+      const card = deck.splice(index, 1)[0];
+      
+      drawn.push(card.name);
+
+      cardImageEl.src = card.image;
+      cardImageEl.alt = card.name;
+      cardImageEl.style.display = 'block';
+      cardNameEl.style.display = 'none';
+
+      if (!isMuted) {
+        cardSoundEl.src = card.audio;
+        cardSoundEl.play().catch(e => console.log("Audio playback error:", e));
+      }
+
+      document.getElementById('drawn-cards').textContent = drawn.join(', ');
+      document.getElementById('cards-left').textContent = uiText[lang].cardsLeft + deck.length;
+
+      if (deck.length === 0) {
+        stopAutoDraw();
+      }
+    }
+    
+    function confirmNewGame() { if (!gameStarted || drawn.length === 0 || confirm(uiText[lang].confirm)) { newGame(); } }
+    function reshuffleSound() { const shuffle = document.getElementById('shuffle-sound'); if (shuffle && !isMuted) { shuffle.currentTime = 0; shuffle.play().catch(e => console.log("Audio error:", e)); } }
+    function toggleLang() { lang = lang === "en" ? "es" : "en"; updateUI(); }
+    
+    function toggleMute() {
+        isMuted = !isMuted;
+        localStorage.setItem('isMuted', isMuted);
+        updateMuteButton();
+    }
+
+    function updateMuteButton() {
+        if (isMuted) {
+            muteBtn.classList.add('muted');
+            speakerOnIcon.style.display = 'none';
+            speakerOffIcon.style.display = 'block';
+        } else {
+            muteBtn.classList.remove('muted');
+            speakerOnIcon.style.display = 'block';
+            speakerOffIcon.style.display = 'none';
+        }
+    }
+
+    function toggleAutoDraw() {
+      if (!gameStarted || deck.length === 0) return;
+      autoDrawActive = !autoDrawActive;
+      if (autoDrawActive) {
+        requestWakeLock();
+        drawCard();
+        autoDrawTimer = setInterval(drawCard, autoDrawSpeed);
+      } else {
+        stopAutoDraw();
+      }
+      updateUI();
+    }
+    function stopAutoDraw() {
+      autoDrawActive = false;
+      clearInterval(autoDrawTimer);
+      autoDrawTimer = null;
+      releaseWakeLock();
+      updateUI();
+    }
+    function updateAutoSpeed() {
+      autoDrawSpeed = Number(document.getElementById('speed-select').value) * 1000;
+      if (autoDrawActive) {
+        clearInterval(autoDrawTimer);
+        autoDrawTimer = setInterval(drawCard, autoDrawSpeed);
+      }
+    }
+
+    window.onload = function() {
+      document.getElementById('draw-btn').onclick = drawCard;
+      document.getElementById('newgame-btn').onclick = confirmNewGame;
+      document.getElementById('reshuffle-btn').onclick = reshuffleSound;
+      document.getElementById('auto-btn').onclick = toggleAutoDraw;
+      document.getElementById('lang-btn').onclick = toggleLang;
+      document.getElementById('speed-select').onchange = updateAutoSpeed;
+      muteBtn.onclick = toggleMute;
+
+      const themeToggle = document.getElementById('theme-toggle');
+      const savedTheme = localStorage.getItem('theme') || 'light';
+      if (savedTheme === 'dark') {
+          document.body.classList.add('dark');
+          themeToggle.checked = true;
+      }
+      themeToggle.addEventListener('change', function() {
+          document.body.classList.toggle('dark', this.checked);
+          localStorage.setItem('theme', this.checked ? 'dark' : 'light');
+      });
+      
+      const savedMuteState = localStorage.getItem('isMuted');
+      isMuted = savedMuteState === 'true';
+      updateMuteButton();
+
+      newGame();
+    };
+  </script>
+</body>
+</html>
